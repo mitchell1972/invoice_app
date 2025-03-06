@@ -30,7 +30,7 @@ class CustomerDB(Base):
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
-    # Relationships
+    # Use string reference to avoid circular import
     invoices = relationship("InvoiceDB", back_populates="customer", cascade="all, delete-orphan")
 
     @validates('email')
