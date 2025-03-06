@@ -3,20 +3,17 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy import create_engine, event
 from contextlib import contextmanager
 from typing import Generator
-import os
 
-# Database URL from environment or default
-SQLALCHEMY_DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://postgres:postgres@db:5432/invoice_db"
-)
+from invoice_app.config import get_settings
 
-# Create database engine with connection pooling
+settings = get_settings()
+
+# Create database engine
 engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    pool_pre_ping=True,  # Enable connection ping
-    pool_size=5,         # Set initial pool size
-    max_overflow=10      # Allow up to 10 connections beyond pool_size
+    settings.DATABASE_URL,
+    pool_pre_ping=True,  # Enable connection pool pre-ping
+    pool_size=5,  # Set initial pool size
+    max_overflow=10  # Set max overflow connections
 )
 
 # Session factory
@@ -39,25 +36,17 @@ def get_db() -> Generator[Session, None, None]:
     with get_db_session() as session:
         yield session
 
-# Add event listeners for debugging (optional)
 @event.listens_for(engine, "connect")
-def connect(dbapi_connection, connection_record):
-    print("Database connection established")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    """Set SQLite pragmas on connection."""
+    if settings.DATABASE_URL.startswith('sqlite'):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
-@event.listens_for(engine, "disconnect")
-def disconnect(dbapi_connection, connection_record):
-    print("Database connection closed")
+# Import all models here to ensure they are registered with Base.metadata
+# This avoids circular import issues
+# These imports must be AFTER Base is defined
 
-# Import models to ensure they are registered with the metadata
-# This must be after Base is defined
 from invoice_app.models.customer import CustomerDB
 from invoice_app.models.invoice import InvoiceDB, InvoiceItemDB
-
-# Create all tables
-def init_db():
-    """Initialize the database by creating all tables."""
-    Base.metadata.create_all(bind=engine)
-
-def cleanup_db():
-    """Cleanup database by dropping all tables."""
-    Base.metadata.drop_all(bind=engine) 
