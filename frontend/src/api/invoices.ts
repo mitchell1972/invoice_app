@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api/v1';
 
 export interface InvoiceItem {
   id?: string;
@@ -40,6 +40,7 @@ export const getInvoice = async (id: string): Promise<Invoice> => {
 };
 
 export const createInvoice = async (invoice: CreateInvoiceData): Promise<Invoice> => {
+  console.log('Creating invoice with data:', invoice);
   const response = await axios.post(`${API_URL}/invoices`, invoice);
   return response.data;
 };
@@ -58,6 +59,6 @@ export const getInvoiceStats = async (): Promise<{
   total_revenue: number;
   status_counts: Record<Invoice['status'], number>;
 }> => {
-  const response = await axios.get('/invoices/stats');
+  const response = await axios.get(`${API_URL}/invoices/stats`);
   return response.data;
-}; 
+};

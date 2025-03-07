@@ -6,7 +6,9 @@ from typing import List
 from invoice_app.config import get_settings
 from invoice_app.db.base import get_db, Base, engine
 from invoice_app.models.customer import Customer, CustomerCreate, CustomerUpdate
+from invoice_app.models.invoice import Invoice, InvoiceCreate, InvoiceUpdate
 from invoice_app.crud import customer as customer_crud
+from invoice_app.crud import invoice as invoice_crud
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -27,6 +29,7 @@ app.add_middleware(
 async def root():
     return {"message": "Welcome to the Invoice App API"}
 
+# Customer endpoints
 @app.post("/api/v1/customers/", response_model=Customer)
 def create_customer(
         customer: CustomerCreate,
@@ -79,6 +82,60 @@ def delete_customer(
     if not customer_crud.delete_customer(db, customer_id):
         raise HTTPException(status_code=404, detail="Customer not found")
     return {"message": "Customer deleted successfully"}
+
+# Invoice endpoints
+@app.post("/api/v1/invoices/", response_model=Invoice)
+def create_invoice(
+        invoice: InvoiceCreate,
+        db: Session = Depends(get_db)
+):
+    try:
+        return invoice_crud.create_invoice(db=db, invoice=invoice)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/v1/invoices/", response_model=List[Invoice])
+def list_invoices(
+        skip: int = 0,
+        limit: int = 100,
+        customer_id: str = None,
+        db: Session = Depends(get_db)
+):
+    return invoice_crud.get_invoices(db, skip=skip, limit=limit, customer_id=customer_id)
+
+@app.get("/api/v1/invoices/{invoice_id}", response_model=Invoice)
+def get_invoice(
+        invoice_id: str,
+        db: Session = Depends(get_db)
+):
+    invoice = invoice_crud.get_invoice(db, invoice_id)
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    return invoice
+
+@app.put("/api/v1/invoices/{invoice_id}", response_model=Invoice)
+def update_invoice(
+        invoice_id: str,
+        invoice: InvoiceUpdate,
+        db: Session = Depends(get_db)
+):
+    updated_invoice = invoice_crud.update_invoice(db, invoice_id, invoice)
+    if not updated_invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    return updated_invoice
+
+@app.delete("/api/v1/invoices/{invoice_id}")
+def delete_invoice(
+        invoice_id: str,
+        db: Session = Depends(get_db)
+):
+    if not invoice_crud.delete_invoice(db, invoice_id):
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    return {"message": "Invoice deleted successfully"}
+
+@app.get("/api/v1/invoices/stats/", response_model=dict)
+def get_invoice_stats(db: Session = Depends(get_db)):
+    return invoice_crud.get_invoice_stats(db)
 
 if __name__ == "__main__":
     import uvicorn
