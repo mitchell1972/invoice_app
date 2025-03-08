@@ -12,7 +12,10 @@ import {
     IconButton,
     Divider,
     MenuItem,
-    InputAdornment
+    InputAdornment,
+    Select,
+    FormControl,
+    InputLabel
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { Customer } from '../api/customers';
@@ -25,6 +28,12 @@ interface InvoiceItem {
     unit_price: number;
     total: number;
 }
+
+type Currency = {
+    code: string;
+    symbol: string;
+    name: string;
+};
 
 interface InvoiceFormModalProps {
     open: boolean;
@@ -44,6 +53,8 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({
     const [dueDate, setDueDate] = useState<Date>(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
     const [status, setStatus] = useState<'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled'>('draft');
     const [notes, setNotes] = useState('');
+    const [recipientEmail, setRecipientEmail] = useState('');
+    const [currency, setCurrency] = useState<Currency>({ code: 'USD', symbol: '$', name: 'US Dollar' });
     const [items, setItems] = useState<InvoiceItem[]>([
         {
             id: '1',
@@ -54,6 +65,13 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({
         }
     ]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Available currencies
+    const currencies: Currency[] = [
+        { code: 'USD', symbol: '$', name: 'US Dollar' },
+        { code: 'GBP', symbol: '£', name: 'British Pound' },
+        { code: 'EUR', symbol: '€', name: 'Euro' }
+    ];
 
     // Calculate totals
     const subtotal = items.reduce((sum, item) => sum + item.total, 0);
@@ -68,6 +86,18 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({
         const day = String(date.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
     };
+
+    // Format currency display
+    const formatCurrency = (amount: number): string => {
+        return `${currency.symbol} ${amount.toFixed(2)}`;
+    };
+
+    // Initialize recipient email from customer if available
+    React.useEffect(() => {
+        if (customer && customer.email) {
+            setRecipientEmail(customer.email);
+        }
+    }, [customer]);
 
     const handleAddItem = () => {
         setItems([
@@ -130,6 +160,8 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({
                 tax: taxAmount,
                 total,
                 notes,
+                recipient_email: recipientEmail,
+                currency_code: currency.code,
                 items: items.map(({ id, ...item }) => item) // Remove the temporary id
             };
 
@@ -157,13 +189,25 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({
             <DialogContent>
                 <Box sx={{ mt: 2 }}>
                     <Grid container spacing={3}>
-                        <Grid item xs={12} sm={4}>
+                        <Grid item xs={12} sm={6}>
                             <TextField
                                 label="Invoice Number"
                                 value={invoiceNumber}
                                 onChange={(e) => setInvoiceNumber(e.target.value)}
                                 fullWidth
                                 required
+                            />
+                        </Grid>
+
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                label="Recipient Email"
+                                type="email"
+                                value={recipientEmail}
+                                onChange={(e) => setRecipientEmail(e.target.value)}
+                                fullWidth
+                                required
+                                placeholder="email@example.com"
                             />
                         </Grid>
 
@@ -191,6 +235,29 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({
                                     shrink: true,
                                 }}
                             />
+                        </Grid>
+
+                        <Grid item xs={12} sm={4}>
+                            <FormControl fullWidth>
+                                <InputLabel id="currency-select-label">Currency</InputLabel>
+                                <Select
+                                    labelId="currency-select-label"
+                                    value={currency.code}
+                                    label="Currency"
+                                    onChange={(e) => {
+                                        const selectedCurrency = currencies.find(c => c.code === e.target.value);
+                                        if (selectedCurrency) {
+                                            setCurrency(selectedCurrency);
+                                        }
+                                    }}
+                                >
+                                    {currencies.map((c) => (
+                                        <MenuItem key={c.code} value={c.code}>
+                                            {c.symbol} - {c.name}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
                         </Grid>
 
                         <Grid item xs={12}>
@@ -251,7 +318,7 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({
                                     fullWidth
                                     required
                                     InputProps={{
-                                        startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                                        startAdornment: <InputAdornment position="start">{currency.symbol}</InputAdornment>,
                                         inputProps: { min: 0, step: 0.01 }
                                     }}
                                 />
@@ -262,7 +329,7 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({
                                     label="Total"
                                     value={item.total.toFixed(2)}
                                     InputProps={{
-                                        startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                                        startAdornment: <InputAdornment position="start">{currency.symbol}</InputAdornment>,
                                         readOnly: true
                                     }}
                                     fullWidth
@@ -295,10 +362,10 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({
                     <Grid container spacing={2}>
                         <Grid item xs={6} sm={9} />
                         <Grid item xs={6} sm={3}>
-                            <Typography variant="subtitle1">Subtotal: ${subtotal.toFixed(2)}</Typography>
-                            <Typography variant="subtitle1">Tax ({taxRate}%): ${taxAmount.toFixed(2)}</Typography>
+                            <Typography variant="subtitle1">Subtotal: {formatCurrency(subtotal)}</Typography>
+                            <Typography variant="subtitle1">Tax ({taxRate}%): {formatCurrency(taxAmount)}</Typography>
                             <Divider sx={{ my: 1 }} />
-                            <Typography variant="h6">Total: ${total.toFixed(2)}</Typography>
+                            <Typography variant="h6">Total: {formatCurrency(total)}</Typography>
                         </Grid>
                     </Grid>
                 </Box>

@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Optional, List
 from sqlalchemy import Column, String, DateTime, Numeric, ForeignKey, Text, Enum
 from sqlalchemy.orm import relationship
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 import enum
 
 from invoice_app.db.base import Base
@@ -32,6 +32,10 @@ class InvoiceDB(Base):
     tax = Column(Numeric(10, 2), default=0)
     total = Column(Numeric(10, 2), nullable=False)
     notes = Column(Text)
+    recipient_email = Column(String(255))  # New field for recipient email
+    currency_code = Column(String(3), default="USD")  # New field for currency
+    recipient_email = Column(String(255))  # New field for recipient email
+    currency_code = Column(String(3), default="USD")  # New field for currency
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -80,6 +84,10 @@ class InvoiceBase(BaseModel):
     tax: float
     total: float
     notes: Optional[str] = None
+    recipient_email: Optional[str] = None  # New field for recipient email
+    currency_code: Optional[str] = "USD"  # New field for currency
+    recipient_email: Optional[str] = None  # New field for recipient email
+    currency_code: Optional[str] = "USD"  # New field for currency
 
 class InvoiceCreate(InvoiceBase):
     items: List[InvoiceItemBase]
@@ -87,7 +95,11 @@ class InvoiceCreate(InvoiceBase):
 class InvoiceUpdate(BaseModel):
     status: Optional[str] = None
     notes: Optional[str] = None
+    recipient_email: Optional[str] = None  # New field for recipient email
+    currency_code: Optional[str] = "USD"  # New field for currency
     due_date: Optional[datetime] = None
+    recipient_email: Optional[str] = None
+    currency_code: Optional[str] = None
 
 class Invoice(InvoiceBase):
     id: str

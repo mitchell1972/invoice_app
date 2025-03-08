@@ -47,7 +47,9 @@ def create_invoice(db: Session, invoice: InvoiceCreate) -> InvoiceDB:
         subtotal=invoice.subtotal,
         tax=invoice.tax,
         total=invoice.total,
-        notes=invoice.notes
+        notes=invoice.notes,
+        recipient_email=invoice.recipient_email,  # Add the new field
+        currency_code=invoice.currency_code       # Add the new field
     )
     db.add(db_invoice)
     db.flush()  # Flush to get the ID for invoice items

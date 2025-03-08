@@ -22,6 +22,8 @@ export interface Invoice {
   tax: number;
   total: number;
   notes?: string;
+  recipient_email?: string;  // New field for recipient email
+  currency_code?: string;    // New field for currency
   created_at?: string;
   updated_at?: string;
   items: InvoiceItem[];
