@@ -1,30 +1,24 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
 
 class Settings(BaseSettings):
     """Application settings."""
     
     # Database settings
-    DATABASE_URL: str = os.getenv(
-        "DATABASE_URL",
-        "postgresql://postgres:postgres@localhost:5432/invoice_app"
-    )
+    DATABASE_URL: str = "postgresql://postgres:postgres@db:5432/invoice_db"
     
     # API settings
-    API_V1_STR: str = "/api/v1"
-    PROJECT_NAME: str = "Invoice App API"
+    API_V1_STR: str = "/api"
+    PROJECT_NAME: str = "Invoice App"
     
-    # Security settings
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-here")
+    # CORS settings
+    BACKEND_CORS_ORIGINS: list = ["http://localhost:3000"]
     
     class Config:
         case_sensitive = True
+        env_file = ".env"
 
 @lru_cache()
 def get_settings() -> Settings:
-    """Get cached settings."""
+    """Get cached settings instance."""
     return Settings() 

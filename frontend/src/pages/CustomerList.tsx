@@ -92,29 +92,17 @@ export default function CustomerList() {
 
   const createInvoiceMutation = useMutation({
     mutationFn: createInvoice,
-    onSuccess: (data) => {
-      // Invalidate invoices query to refresh the data
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
-
-      // Mark the customer's invoice as saved (amber color)
-      if (selectedCustomer) {
-        setCustomerInvoices(prev => ({
-          ...prev,
-          [selectedCustomer.id]: 'saved'
-        }));
-      }
-
-      // Close the modal - now handled in the modal component itself
-
-      // Navigate to the Invoices page to show the new invoice
-      setTimeout(() => {
-        navigate('/invoices');
-      }, 1600); // Slightly longer than the snackbar duration in the modal
     },
-    onError: (error) => {
-      console.error('Error creating invoice:', error);
-      setSnackbarMessage('Failed to create invoice. Please try again.');
-      setOpenSnackbar(true);
+    onError: (error: any) => {
+      console.error('Invoice creation error:', error);
+      if (error.response) {
+        console.error('Server response:', {
+          status: error.response.status,
+          data: error.response.data
+        });
+      }
     }
   });
 
@@ -126,11 +114,46 @@ export default function CustomerList() {
   };
 
   // Function to handle saving the invoice
-  // Change this function
   const handleSaveInvoice = async (invoiceData: CreateInvoiceData) => {
     console.log('Saving invoice:', invoiceData);
     await createInvoiceMutation.mutateAsync(invoiceData);
     // No return statement makes it return Promise<void>
+  };
+
+  const handleCreateInvoice = async (customer: Customer) => {
+    const invoiceData = {
+      customer_id: customer.id,
+      invoice_number: `INV-${Date.now()}`,
+      issue_date: new Date().toISOString(),
+      due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      status: 'draft' as const,
+      items: [
+        {
+          description: 'Service',
+          quantity: 1,
+          unit_price: 125.00,
+          total: 125.00
+        }
+      ],
+      subtotal: 125.00,
+      tax: 25.00,
+      total: 150.00
+    };
+
+    try {
+      console.log('Creating invoice:', invoiceData);
+      const response = await createInvoiceMutation.mutateAsync(invoiceData);
+      console.log('Invoice created:', response);
+      setCustomerInvoices(prev => ({
+        ...prev,
+        [customer.id]: 'saved'
+      }));
+      // Show success message
+      alert('Invoice created successfully!');
+    } catch (error) {
+      console.error('Failed to create invoice:', error);
+      alert('Failed to create invoice. Please try again.');
+    }
   };
 
   const handleCreateCustomer = async () => {

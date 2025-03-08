@@ -3,8 +3,6 @@ import axios from 'axios';
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api/v1';
 
 export interface InvoiceItem {
-  id?: string;
-  invoice_id?: string;
   description: string;
   quantity: number;
   unit_price: number;
@@ -12,24 +10,36 @@ export interface InvoiceItem {
 }
 
 export interface Invoice {
-  id?: string;
-  invoice_number: string;
+  id: string;
   customer_id: string;
+  invoice_number: string;
   issue_date: string;
   due_date: string;
-  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+  status: 'draft' | 'pending' | 'paid' | 'cancelled';
+  items: InvoiceItem[];
   subtotal: number;
   tax: number;
   total: number;
-  notes?: string;
-  recipient_email?: string;  // New field for recipient email
-  currency_code?: string;    // New field for currency
   created_at?: string;
   updated_at?: string;
-  items: InvoiceItem[];
 }
 
-export interface CreateInvoiceData extends Omit<Invoice, 'id' | 'created_at' | 'updated_at'> {}
+export interface CreateInvoiceData {
+  customer_id: string;
+  invoice_number: string;
+  issue_date: string;
+  due_date: string;
+  status: 'draft' | 'pending' | 'paid' | 'cancelled';
+  items: {
+    description: string;
+    quantity: number;
+    unit_price: number;
+    total: number;
+  }[];
+  subtotal: number;
+  tax: number;
+  total: number;
+}
 
 export const getInvoices = async (): Promise<Invoice[]> => {
   const response = await axios.get(`${API_URL}/invoices`);
@@ -41,10 +51,24 @@ export const getInvoice = async (id: string): Promise<Invoice> => {
   return response.data;
 };
 
-export const createInvoice = async (invoice: CreateInvoiceData): Promise<Invoice> => {
-  console.log('Creating invoice with data:', invoice);
-  const response = await axios.post(`${API_URL}/invoices`, invoice);
-  return response.data;
+export const createInvoice = async (data: CreateInvoiceData): Promise<Invoice> => {
+  try {
+    console.log('Creating invoice with data:', data);
+    const response = await axios.post(`${API_URL}/invoices/`, data, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    console.log('Invoice creation response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating invoice:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('Error response:', error.response.data);
+      throw new Error(error.response.data.detail || 'Failed to create invoice');
+    }
+    throw error;
+  }
 };
 
 export const updateInvoice = async (id: string, invoice: Partial<Invoice>): Promise<Invoice> => {

@@ -3,28 +3,36 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy import create_engine, event
 from contextlib import contextmanager
 from typing import Generator
+import os
 
-from invoice_app.config import get_settings
-
-settings = get_settings()
-
-# Create database engine
-engine = create_engine(
-    settings.DATABASE_URL,
-    pool_pre_ping=True,  # Enable connection pool pre-ping
-    pool_size=5,  # Set initial pool size
-    max_overflow=10  # Set max overflow connections
+# Get database URL from environment variable with fallback
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://postgres:postgres@db:5432/invoice_db"
 )
 
-# Session factory
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Create database engine with optimized settings
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    pool_size=5,
+    max_overflow=10,
+    echo=True  # Enable SQL logging for debugging
+)
 
-# Base class for database models
+# Create session factory
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine
+)
+
+# Create base class for declarative models
 Base = declarative_base()
 
 @contextmanager
 def get_db_session() -> Generator[Session, None, None]:
-    """Get database session with context manager."""
+    """Provide a transactional scope around a series of operations."""
     session = SessionLocal()
     try:
         yield session
@@ -32,21 +40,25 @@ def get_db_session() -> Generator[Session, None, None]:
         session.close()
 
 def get_db() -> Generator[Session, None, None]:
-    """Dependency for getting database session."""
+    """FastAPI dependency for database sessions."""
     with get_db_session() as session:
         yield session
 
+# Database initialization and cleanup functions
+def init_db() -> None:
+    """Initialize database by creating all tables."""
+    Base.metadata.create_all(bind=engine)
+
+def cleanup_db() -> None:
+    """Clean up database by dropping all tables."""
+    Base.metadata.drop_all(bind=engine)
+
+# Event listener for connection debugging
 @event.listens_for(engine, "connect")
-def set_sqlite_pragma(dbapi_connection, connection_record):
-    """Set SQLite pragmas on connection."""
-    if settings.DATABASE_URL.startswith('sqlite'):
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
+def on_connect(dbapi_connection, connection_record):
+    """Log when a connection is created."""
+    print("Database connection established")
 
-# Import all models here to ensure they are registered with Base.metadata
-# This avoids circular import issues
-# These imports must be AFTER Base is defined
-
+# Import models after Base is defined to avoid circular imports
 from invoice_app.models.customer import CustomerDB
 from invoice_app.models.invoice import InvoiceDB, InvoiceItemDB
