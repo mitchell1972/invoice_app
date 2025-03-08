@@ -93,9 +93,8 @@ export default function CustomerList() {
   const createInvoiceMutation = useMutation({
     mutationFn: createInvoice,
     onSuccess: (data) => {
+      // Invalidate invoices query to refresh the data
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      setSnackbarMessage('Invoice has been successfully created!');
-      setOpenSnackbar(true);
 
       // Mark the customer's invoice as saved (amber color)
       if (selectedCustomer) {
@@ -105,9 +104,18 @@ export default function CustomerList() {
         }));
       }
 
-      // Navigate to the invoices page after successful creation
-      navigate('/invoices');
+      // Close the modal - now handled in the modal component itself
+
+      // Navigate to the Invoices page to show the new invoice
+      setTimeout(() => {
+        navigate('/invoices');
+      }, 1600); // Slightly longer than the snackbar duration in the modal
     },
+    onError: (error) => {
+      console.error('Error creating invoice:', error);
+      setSnackbarMessage('Failed to create invoice. Please try again.');
+      setOpenSnackbar(true);
+    }
   });
 
   // Function to open the invoice modal
@@ -118,10 +126,11 @@ export default function CustomerList() {
   };
 
   // Function to handle saving the invoice
+  // Change this function
   const handleSaveInvoice = async (invoiceData: CreateInvoiceData) => {
     console.log('Saving invoice:', invoiceData);
     await createInvoiceMutation.mutateAsync(invoiceData);
-    setInvoiceModalOpen(false);
+    // No return statement makes it return Promise<void>
   };
 
   const handleCreateCustomer = async () => {
@@ -350,7 +359,7 @@ export default function CustomerList() {
           </Alert>
         </Snackbar>
 
-        {/* Invoice Form Modal - Make sure this is included */}
+        {/* Invoice Form Modal */}
         <InvoiceFormModal
             open={invoiceModalOpen}
             onClose={() => setInvoiceModalOpen(false)}
