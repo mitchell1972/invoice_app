@@ -14,14 +14,9 @@ import {
     MenuItem,
     InputAdornment
 } from '@mui/material';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
-import { format } from 'date-fns';
 import { Customer } from '../api/customers';
 import { CreateInvoiceData } from '../api/invoices';
-import { generateInvoiceNumber } from '../utils/format';
 
 interface InvoiceItem {
     id: string;
@@ -44,7 +39,7 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({
                                                                onSave,
                                                                customer
                                                            }) => {
-    const [invoiceNumber, setInvoiceNumber] = useState(generateInvoiceNumber());
+    const [invoiceNumber, setInvoiceNumber] = useState(`INV-${Date.now()}`);
     const [issueDate, setIssueDate] = useState<Date>(new Date());
     const [dueDate, setDueDate] = useState<Date>(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
     const [status, setStatus] = useState<'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled'>('draft');
@@ -65,6 +60,14 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({
     const taxRate = 20; // 20% VAT
     const taxAmount = subtotal * (taxRate / 100);
     const total = subtotal + taxAmount;
+
+    // Format date as YYYY-MM-DD string
+    const formatDateToISOString = (date: Date): string => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
 
     const handleAddItem = () => {
         setItems([
@@ -120,8 +123,8 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({
             const invoiceData: CreateInvoiceData = {
                 invoice_number: invoiceNumber,
                 customer_id: customer.id,
-                issue_date: format(issueDate, 'yyyy-MM-dd'),
-                due_date: format(dueDate, 'yyyy-MM-dd'),
+                issue_date: formatDateToISOString(issueDate),
+                due_date: formatDateToISOString(dueDate),
                 status,
                 subtotal,
                 tax: taxAmount,
@@ -139,6 +142,7 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({
         }
     };
 
+    // If there's no customer, don't render the modal
     if (!customer) return null;
 
     return (
@@ -151,158 +155,164 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({
             </DialogTitle>
 
             <DialogContent>
-                <LocalizationProvider dateAdapter={AdapterDateFns}>
-                    <Box sx={{ mt: 2 }}>
-                        <Grid container spacing={3}>
-                            <Grid item xs={12} sm={4}>
+                <Box sx={{ mt: 2 }}>
+                    <Grid container spacing={3}>
+                        <Grid item xs={12} sm={4}>
+                            <TextField
+                                label="Invoice Number"
+                                value={invoiceNumber}
+                                onChange={(e) => setInvoiceNumber(e.target.value)}
+                                fullWidth
+                                required
+                            />
+                        </Grid>
+
+                        <Grid item xs={12} sm={4}>
+                            <TextField
+                                label="Issue Date"
+                                type="date"
+                                value={formatDateToISOString(issueDate)}
+                                onChange={(e) => setIssueDate(new Date(e.target.value))}
+                                fullWidth
+                                InputLabelProps={{
+                                    shrink: true,
+                                }}
+                            />
+                        </Grid>
+
+                        <Grid item xs={12} sm={4}>
+                            <TextField
+                                label="Due Date"
+                                type="date"
+                                value={formatDateToISOString(dueDate)}
+                                onChange={(e) => setDueDate(new Date(e.target.value))}
+                                fullWidth
+                                InputLabelProps={{
+                                    shrink: true,
+                                }}
+                            />
+                        </Grid>
+
+                        <Grid item xs={12}>
+                            <TextField
+                                select
+                                label="Status"
+                                value={status}
+                                onChange={(e) => setStatus(e.target.value as any)}
+                                fullWidth
+                            >
+                                <MenuItem value="draft">Draft</MenuItem>
+                                <MenuItem value="sent">Sent</MenuItem>
+                                <MenuItem value="paid">Paid</MenuItem>
+                            </TextField>
+                        </Grid>
+                    </Grid>
+                </Box>
+
+                <Box sx={{ mt: 4 }}>
+                    <Typography variant="h6" gutterBottom>
+                        Invoice Items
+                    </Typography>
+
+                    <Divider sx={{ mb: 2 }} />
+
+                    {items.map((item, index) => (
+                        <Grid container spacing={2} key={item.id} sx={{ mb: 2 }}>
+                            <Grid item xs={12} sm={5}>
                                 <TextField
-                                    label="Invoice Number"
-                                    value={invoiceNumber}
-                                    onChange={(e) => setInvoiceNumber(e.target.value)}
+                                    label="Description"
+                                    value={item.description}
+                                    onChange={(e) => handleItemChange(item.id, 'description', e.target.value)}
                                     fullWidth
                                     required
                                 />
                             </Grid>
 
-                            <Grid item xs={12} sm={4}>
-                                <DatePicker
-                                    label="Issue Date"
-                                    value={issueDate}
-                                    onChange={(date) => date && setIssueDate(date)}
-                                    format="yyyy-MM-dd"
-                                />
-                            </Grid>
-
-                            <Grid item xs={12} sm={4}>
-                                <DatePicker
-                                    label="Due Date"
-                                    value={dueDate}
-                                    onChange={(date) => date && setDueDate(date)}
-                                    format="yyyy-MM-dd"
-                                />
-                            </Grid>
-
-                            <Grid item xs={12}>
+                            <Grid item xs={6} sm={2}>
                                 <TextField
-                                    select
-                                    label="Status"
-                                    value={status}
-                                    onChange={(e) => setStatus(e.target.value as any)}
+                                    label="Quantity"
+                                    type="number"
+                                    value={item.quantity}
+                                    onChange={(e) => handleItemChange(item.id, 'quantity', e.target.value)}
                                     fullWidth
+                                    required
+                                    InputProps={{
+                                        inputProps: { min: 1, step: 0.01 }
+                                    }}
+                                />
+                            </Grid>
+
+                            <Grid item xs={6} sm={2}>
+                                <TextField
+                                    label="Unit Price"
+                                    type="number"
+                                    value={item.unit_price}
+                                    onChange={(e) => handleItemChange(item.id, 'unit_price', e.target.value)}
+                                    fullWidth
+                                    required
+                                    InputProps={{
+                                        startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                                        inputProps: { min: 0, step: 0.01 }
+                                    }}
+                                />
+                            </Grid>
+
+                            <Grid item xs={10} sm={2}>
+                                <TextField
+                                    label="Total"
+                                    value={item.total.toFixed(2)}
+                                    InputProps={{
+                                        startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                                        readOnly: true
+                                    }}
+                                    fullWidth
+                                />
+                            </Grid>
+
+                            <Grid item xs={2} sm={1} sx={{ display: 'flex', alignItems: 'center' }}>
+                                <IconButton
+                                    color="error"
+                                    onClick={() => handleRemoveItem(item.id)}
+                                    disabled={items.length === 1}
                                 >
-                                    <MenuItem value="draft">Draft</MenuItem>
-                                    <MenuItem value="sent">Sent</MenuItem>
-                                    <MenuItem value="paid">Paid</MenuItem>
-                                </TextField>
+                                    <DeleteIcon />
+                                </IconButton>
                             </Grid>
                         </Grid>
-                    </Box>
+                    ))}
 
-                    <Box sx={{ mt: 4 }}>
-                        <Typography variant="h6" gutterBottom>
-                            Invoice Items
-                        </Typography>
+                    <Button
+                        startIcon={<AddIcon />}
+                        onClick={handleAddItem}
+                        variant="outlined"
+                        sx={{ mt: 1 }}
+                    >
+                        Add Item
+                    </Button>
+                </Box>
 
-                        <Divider sx={{ mb: 2 }} />
-
-                        {items.map((item, index) => (
-                            <Grid container spacing={2} key={item.id} sx={{ mb: 2 }}>
-                                <Grid item xs={12} sm={5}>
-                                    <TextField
-                                        label="Description"
-                                        value={item.description}
-                                        onChange={(e) => handleItemChange(item.id, 'description', e.target.value)}
-                                        fullWidth
-                                        required
-                                    />
-                                </Grid>
-
-                                <Grid item xs={6} sm={2}>
-                                    <TextField
-                                        label="Quantity"
-                                        type="number"
-                                        value={item.quantity}
-                                        onChange={(e) => handleItemChange(item.id, 'quantity', e.target.value)}
-                                        fullWidth
-                                        required
-                                        InputProps={{
-                                            inputProps: { min: 1, step: 0.01 }
-                                        }}
-                                    />
-                                </Grid>
-
-                                <Grid item xs={6} sm={2}>
-                                    <TextField
-                                        label="Unit Price"
-                                        type="number"
-                                        value={item.unit_price}
-                                        onChange={(e) => handleItemChange(item.id, 'unit_price', e.target.value)}
-                                        fullWidth
-                                        required
-                                        InputProps={{
-                                            startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                                            inputProps: { min: 0, step: 0.01 }
-                                        }}
-                                    />
-                                </Grid>
-
-                                <Grid item xs={10} sm={2}>
-                                    <TextField
-                                        label="Total"
-                                        value={item.total.toFixed(2)}
-                                        InputProps={{
-                                            startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                                            readOnly: true
-                                        }}
-                                        fullWidth
-                                    />
-                                </Grid>
-
-                                <Grid item xs={2} sm={1} sx={{ display: 'flex', alignItems: 'center' }}>
-                                    <IconButton
-                                        color="error"
-                                        onClick={() => handleRemoveItem(item.id)}
-                                        disabled={items.length === 1}
-                                    >
-                                        <DeleteIcon />
-                                    </IconButton>
-                                </Grid>
-                            </Grid>
-                        ))}
-
-                        <Button
-                            startIcon={<AddIcon />}
-                            onClick={handleAddItem}
-                            variant="outlined"
-                            sx={{ mt: 1 }}
-                        >
-                            Add Item
-                        </Button>
-                    </Box>
-
-                    <Box sx={{ mt: 4, bgcolor: 'grey.100', p: 2, borderRadius: 1 }}>
-                        <Grid container spacing={2}>
-                            <Grid item xs={6} sm={9} />
-                            <Grid item xs={6} sm={3}>
-                                <Typography variant="subtitle1">Subtotal: ${subtotal.toFixed(2)}</Typography>
-                                <Typography variant="subtitle1">Tax ({taxRate}%): ${taxAmount.toFixed(2)}</Typography>
-                                <Divider sx={{ my: 1 }} />
-                                <Typography variant="h6">Total: ${total.toFixed(2)}</Typography>
-                            </Grid>
+                <Box sx={{ mt: 4, bgcolor: 'grey.100', p: 2, borderRadius: 1 }}>
+                    <Grid container spacing={2}>
+                        <Grid item xs={6} sm={9} />
+                        <Grid item xs={6} sm={3}>
+                            <Typography variant="subtitle1">Subtotal: ${subtotal.toFixed(2)}</Typography>
+                            <Typography variant="subtitle1">Tax ({taxRate}%): ${taxAmount.toFixed(2)}</Typography>
+                            <Divider sx={{ my: 1 }} />
+                            <Typography variant="h6">Total: ${total.toFixed(2)}</Typography>
                         </Grid>
-                    </Box>
+                    </Grid>
+                </Box>
 
-                    <Box sx={{ mt: 3 }}>
-                        <TextField
-                            label="Notes"
-                            value={notes}
-                            onChange={(e) => setNotes(e.target.value)}
-                            fullWidth
-                            multiline
-                            rows={3}
-                        />
-                    </Box>
-                </LocalizationProvider>
+                <Box sx={{ mt: 3 }}>
+                    <TextField
+                        label="Notes"
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        fullWidth
+                        multiline
+                        rows={3}
+                    />
+                </Box>
             </DialogContent>
 
             <DialogActions>
