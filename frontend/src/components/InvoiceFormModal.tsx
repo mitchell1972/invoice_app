@@ -100,21 +100,6 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({
         }
     }, [customer]);
 
-    // Format customer address from address fields
-    const formatCustomerAddress = (): string => {
-        if (!customer) return '';
-
-        const addressParts = [];
-
-        if (customer.address) addressParts.push(customer.address);
-        if (customer.city) addressParts.push(customer.city);
-        if (customer.state) addressParts.push(customer.state);
-        if (customer.postal_code) addressParts.push(customer.postal_code);
-        if (customer.country) addressParts.push(customer.country);
-
-        return addressParts.join(', ');
-    };
-
     const handleAddItem = () => {
         setItems([
             ...items,

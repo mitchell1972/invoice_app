@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -42,6 +43,7 @@ interface NewCustomerForm {
 }
 
 export default function CustomerList() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [openDialog, setOpenDialog] = useState(false);
   const [openSnackbar, setOpenSnackbar] = useState(false);
@@ -102,6 +104,9 @@ export default function CustomerList() {
           [selectedCustomer.id]: 'saved'
         }));
       }
+
+      // Navigate to the invoices page after successful creation
+      navigate('/invoices');
     },
   });
 
