@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Dialog,
     DialogTitle,
@@ -13,9 +13,10 @@ import {
     Divider,
     MenuItem,
     InputAdornment,
-    Select,
     FormControl,
-    InputLabel
+    InputLabel,
+    Select,
+    Paper
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { Customer } from '../api/customers';
@@ -93,11 +94,26 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({
     };
 
     // Initialize recipient email from customer if available
-    React.useEffect(() => {
-        if (customer && customer.email) {
-            setRecipientEmail(customer.email);
+    useEffect(() => {
+        if (customer) {
+            setRecipientEmail(customer.email || '');
         }
     }, [customer]);
+
+    // Format customer address from address fields
+    const formatCustomerAddress = (): string => {
+        if (!customer) return '';
+
+        const addressParts = [];
+
+        if (customer.address) addressParts.push(customer.address);
+        if (customer.city) addressParts.push(customer.city);
+        if (customer.state) addressParts.push(customer.state);
+        if (customer.postal_code) addressParts.push(customer.postal_code);
+        if (customer.country) addressParts.push(customer.country);
+
+        return addressParts.join(', ');
+    };
 
     const handleAddItem = () => {
         setItems([
@@ -187,6 +203,42 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({
             </DialogTitle>
 
             <DialogContent>
+                {/* Customer Information Section */}
+                <Paper variant="outlined" sx={{ p: 2, mb: 3, bgcolor: 'background.paper' }}>
+                    <Grid container spacing={2}>
+                        <Grid item xs={12} md={6}>
+                            <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                                Bill To:
+                            </Typography>
+                            <Typography variant="body1" gutterBottom><strong>{customer.name}</strong></Typography>
+                            <Typography variant="body2" component="div" style={{ whiteSpace: 'pre-line' }}>
+                                {customer.address}
+                                {customer.city && <br />}
+                                {customer.city} {customer.state} {customer.postal_code}
+                                {customer.country && <br />}
+                                {customer.country}
+                            </Typography>
+                            <Typography variant="body2" sx={{ mt: 1 }}>
+                                {customer.phone}
+                            </Typography>
+                        </Grid>
+                        <Grid item xs={12} md={6}>
+                            <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                                Invoice Details:
+                            </Typography>
+                            <Typography variant="body2">
+                                <strong>Invoice Number:</strong> {invoiceNumber}
+                            </Typography>
+                            <Typography variant="body2">
+                                <strong>Issue Date:</strong> {formatDateToISOString(issueDate)}
+                            </Typography>
+                            <Typography variant="body2">
+                                <strong>Due Date:</strong> {formatDateToISOString(dueDate)}
+                            </Typography>
+                        </Grid>
+                    </Grid>
+                </Paper>
+
                 <Box sx={{ mt: 2 }}>
                     <Grid container spacing={3}>
                         <Grid item xs={12} sm={6}>
