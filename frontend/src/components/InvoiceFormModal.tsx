@@ -16,7 +16,9 @@ import {
     FormControl,
     InputLabel,
     Select,
-    Paper
+    Paper,
+    Snackbar,
+    Alert
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { Customer } from '../api/customers';
@@ -66,6 +68,7 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({
         }
     ]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
     // Available currencies
     const currencies: Currency[] = [
@@ -167,7 +170,12 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({
             };
 
             await onSave(invoiceData);
-            onClose();
+            setShowSuccessMessage(true);
+
+            // Close the modal after a brief delay to show the success message
+            setTimeout(() => {
+                onClose();
+            }, 1500);
         } catch (error) {
             console.error('Error saving invoice:', error);
         } finally {
@@ -179,258 +187,271 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({
     if (!customer) return null;
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-            <DialogTitle>
-                <Typography variant="h5">Create New Invoice</Typography>
-                <Typography variant="subtitle1" color="textSecondary">
-                    For: {customer.name}
-                </Typography>
-            </DialogTitle>
-
-            <DialogContent>
-                {/* Customer Information Section */}
-                <Paper variant="outlined" sx={{ p: 2, mb: 3, bgcolor: 'background.paper' }}>
-                    <Grid container spacing={2}>
-                        <Grid item xs={12} md={6}>
-                            <Typography variant="subtitle2" color="textSecondary" gutterBottom>
-                                Bill To:
-                            </Typography>
-                            <Typography variant="body1" gutterBottom><strong>{customer.name}</strong></Typography>
-                            <Typography variant="body2" component="div" style={{ whiteSpace: 'pre-line' }}>
-                                {customer.address}
-                                {customer.city && <br />}
-                                {customer.city} {customer.state} {customer.postal_code}
-                                {customer.country && <br />}
-                                {customer.country}
-                            </Typography>
-                            <Typography variant="body2" sx={{ mt: 1 }}>
-                                {customer.phone}
-                            </Typography>
-                        </Grid>
-                        <Grid item xs={12} md={6}>
-                            <Typography variant="subtitle2" color="textSecondary" gutterBottom>
-                                Invoice Details:
-                            </Typography>
-                            <Typography variant="body2">
-                                <strong>Invoice Number:</strong> {invoiceNumber}
-                            </Typography>
-                            <Typography variant="body2">
-                                <strong>Issue Date:</strong> {formatDateToISOString(issueDate)}
-                            </Typography>
-                            <Typography variant="body2">
-                                <strong>Due Date:</strong> {formatDateToISOString(dueDate)}
-                            </Typography>
-                        </Grid>
-                    </Grid>
-                </Paper>
-
-                <Box sx={{ mt: 2 }}>
-                    <Grid container spacing={3}>
-                        <Grid item xs={12} sm={6}>
-                            <TextField
-                                label="Invoice Number"
-                                value={invoiceNumber}
-                                onChange={(e) => setInvoiceNumber(e.target.value)}
-                                fullWidth
-                                required
-                            />
-                        </Grid>
-
-                        <Grid item xs={12} sm={6}>
-                            <TextField
-                                label="Recipient Email"
-                                type="email"
-                                value={recipientEmail}
-                                onChange={(e) => setRecipientEmail(e.target.value)}
-                                fullWidth
-                                required
-                                placeholder="email@example.com"
-                            />
-                        </Grid>
-
-                        <Grid item xs={12} sm={4}>
-                            <TextField
-                                label="Issue Date"
-                                type="date"
-                                value={formatDateToISOString(issueDate)}
-                                onChange={(e) => setIssueDate(new Date(e.target.value))}
-                                fullWidth
-                                InputLabelProps={{
-                                    shrink: true,
-                                }}
-                            />
-                        </Grid>
-
-                        <Grid item xs={12} sm={4}>
-                            <TextField
-                                label="Due Date"
-                                type="date"
-                                value={formatDateToISOString(dueDate)}
-                                onChange={(e) => setDueDate(new Date(e.target.value))}
-                                fullWidth
-                                InputLabelProps={{
-                                    shrink: true,
-                                }}
-                            />
-                        </Grid>
-
-                        <Grid item xs={12} sm={4}>
-                            <FormControl fullWidth>
-                                <InputLabel id="currency-select-label">Currency</InputLabel>
-                                <Select
-                                    labelId="currency-select-label"
-                                    value={currency.code}
-                                    label="Currency"
-                                    onChange={(e) => {
-                                        const selectedCurrency = currencies.find(c => c.code === e.target.value);
-                                        if (selectedCurrency) {
-                                            setCurrency(selectedCurrency);
-                                        }
-                                    }}
-                                >
-                                    {currencies.map((c) => (
-                                        <MenuItem key={c.code} value={c.code}>
-                                            {c.symbol} - {c.name}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </Grid>
-
-                        <Grid item xs={12}>
-                            <TextField
-                                select
-                                label="Status"
-                                value={status}
-                                onChange={(e) => setStatus(e.target.value as any)}
-                                fullWidth
-                            >
-                                <MenuItem value="draft">Draft</MenuItem>
-                                <MenuItem value="sent">Sent</MenuItem>
-                                <MenuItem value="paid">Paid</MenuItem>
-                            </TextField>
-                        </Grid>
-                    </Grid>
-                </Box>
-
-                <Box sx={{ mt: 4 }}>
-                    <Typography variant="h6" gutterBottom>
-                        Invoice Items
+        <>
+            <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+                <DialogTitle>
+                    <Typography variant="h5">Create New Invoice</Typography>
+                    <Typography variant="subtitle1" color="textSecondary">
+                        For: {customer.name}
                     </Typography>
+                </DialogTitle>
 
-                    <Divider sx={{ mb: 2 }} />
+                <DialogContent>
+                    {/* Customer Information Section */}
+                    <Paper variant="outlined" sx={{ p: 2, mb: 3, bgcolor: 'background.paper' }}>
+                        <Grid container spacing={2}>
+                            <Grid item xs={12} md={6}>
+                                <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                                    Bill To:
+                                </Typography>
+                                <Typography variant="body1" gutterBottom><strong>{customer.name}</strong></Typography>
+                                <Typography variant="body2" component="div" style={{ whiteSpace: 'pre-line' }}>
+                                    {customer.address}
+                                    {customer.city && <br />}
+                                    {customer.city} {customer.state} {customer.postal_code}
+                                    {customer.country && <br />}
+                                    {customer.country}
+                                </Typography>
+                                <Typography variant="body2" sx={{ mt: 1 }}>
+                                    {customer.phone}
+                                </Typography>
+                            </Grid>
+                            <Grid item xs={12} md={6}>
+                                <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                                    Invoice Details:
+                                </Typography>
+                                <Typography variant="body2">
+                                    <strong>Invoice Number:</strong> {invoiceNumber}
+                                </Typography>
+                                <Typography variant="body2">
+                                    <strong>Issue Date:</strong> {formatDateToISOString(issueDate)}
+                                </Typography>
+                                <Typography variant="body2">
+                                    <strong>Due Date:</strong> {formatDateToISOString(dueDate)}
+                                </Typography>
+                            </Grid>
+                        </Grid>
+                    </Paper>
 
-                    {items.map((item, index) => (
-                        <Grid container spacing={2} key={item.id} sx={{ mb: 2 }}>
-                            <Grid item xs={12} sm={5}>
+                    <Box sx={{ mt: 2 }}>
+                        <Grid container spacing={3}>
+                            <Grid item xs={12} sm={6}>
                                 <TextField
-                                    label="Description"
-                                    value={item.description}
-                                    onChange={(e) => handleItemChange(item.id, 'description', e.target.value)}
+                                    label="Invoice Number"
+                                    value={invoiceNumber}
+                                    onChange={(e) => setInvoiceNumber(e.target.value)}
                                     fullWidth
                                     required
                                 />
                             </Grid>
 
-                            <Grid item xs={6} sm={2}>
+                            <Grid item xs={12} sm={6}>
                                 <TextField
-                                    label="Quantity"
-                                    type="number"
-                                    value={item.quantity}
-                                    onChange={(e) => handleItemChange(item.id, 'quantity', e.target.value)}
+                                    label="Recipient Email"
+                                    type="email"
+                                    value={recipientEmail}
+                                    onChange={(e) => setRecipientEmail(e.target.value)}
                                     fullWidth
                                     required
-                                    InputProps={{
-                                        inputProps: { min: 1, step: 0.01 }
-                                    }}
+                                    placeholder="email@example.com"
                                 />
                             </Grid>
 
-                            <Grid item xs={6} sm={2}>
+                            <Grid item xs={12} sm={4}>
                                 <TextField
-                                    label="Unit Price"
-                                    type="number"
-                                    value={item.unit_price}
-                                    onChange={(e) => handleItemChange(item.id, 'unit_price', e.target.value)}
+                                    label="Issue Date"
+                                    type="date"
+                                    value={formatDateToISOString(issueDate)}
+                                    onChange={(e) => setIssueDate(new Date(e.target.value))}
                                     fullWidth
-                                    required
-                                    InputProps={{
-                                        startAdornment: <InputAdornment position="start">{currency.symbol}</InputAdornment>,
-                                        inputProps: { min: 0, step: 0.01 }
+                                    InputLabelProps={{
+                                        shrink: true,
                                     }}
                                 />
                             </Grid>
 
-                            <Grid item xs={10} sm={2}>
+                            <Grid item xs={12} sm={4}>
                                 <TextField
-                                    label="Total"
-                                    value={item.total.toFixed(2)}
-                                    InputProps={{
-                                        startAdornment: <InputAdornment position="start">{currency.symbol}</InputAdornment>,
-                                        readOnly: true
-                                    }}
+                                    label="Due Date"
+                                    type="date"
+                                    value={formatDateToISOString(dueDate)}
+                                    onChange={(e) => setDueDate(new Date(e.target.value))}
                                     fullWidth
+                                    InputLabelProps={{
+                                        shrink: true,
+                                    }}
                                 />
                             </Grid>
 
-                            <Grid item xs={2} sm={1} sx={{ display: 'flex', alignItems: 'center' }}>
-                                <IconButton
-                                    color="error"
-                                    onClick={() => handleRemoveItem(item.id)}
-                                    disabled={items.length === 1}
+                            <Grid item xs={12} sm={4}>
+                                <FormControl fullWidth>
+                                    <InputLabel id="currency-select-label">Currency</InputLabel>
+                                    <Select
+                                        labelId="currency-select-label"
+                                        value={currency.code}
+                                        label="Currency"
+                                        onChange={(e) => {
+                                            const selectedCurrency = currencies.find(c => c.code === e.target.value);
+                                            if (selectedCurrency) {
+                                                setCurrency(selectedCurrency);
+                                            }
+                                        }}
+                                    >
+                                        {currencies.map((c) => (
+                                            <MenuItem key={c.code} value={c.code}>
+                                                {c.symbol} - {c.name}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            </Grid>
+
+                            <Grid item xs={12}>
+                                <TextField
+                                    select
+                                    label="Status"
+                                    value={status}
+                                    onChange={(e) => setStatus(e.target.value as any)}
+                                    fullWidth
                                 >
-                                    <DeleteIcon />
-                                </IconButton>
+                                    <MenuItem value="draft">Draft</MenuItem>
+                                    <MenuItem value="sent">Sent</MenuItem>
+                                    <MenuItem value="paid">Paid</MenuItem>
+                                </TextField>
                             </Grid>
                         </Grid>
-                    ))}
+                    </Box>
 
-                    <Button
-                        startIcon={<AddIcon />}
-                        onClick={handleAddItem}
-                        variant="outlined"
-                        sx={{ mt: 1 }}
-                    >
-                        Add Item
-                    </Button>
-                </Box>
+                    <Box sx={{ mt: 4 }}>
+                        <Typography variant="h6" gutterBottom>
+                            Invoice Items
+                        </Typography>
 
-                <Box sx={{ mt: 4, bgcolor: 'grey.100', p: 2, borderRadius: 1 }}>
-                    <Grid container spacing={2}>
-                        <Grid item xs={6} sm={9} />
-                        <Grid item xs={6} sm={3}>
-                            <Typography variant="subtitle1">Subtotal: {formatCurrency(subtotal)}</Typography>
-                            <Typography variant="subtitle1">Tax ({taxRate}%): {formatCurrency(taxAmount)}</Typography>
-                            <Divider sx={{ my: 1 }} />
-                            <Typography variant="h6">Total: {formatCurrency(total)}</Typography>
+                        <Divider sx={{ mb: 2 }} />
+
+                        {items.map((item, index) => (
+                            <Grid container spacing={2} key={item.id} sx={{ mb: 2 }}>
+                                <Grid item xs={12} sm={5}>
+                                    <TextField
+                                        label="Description"
+                                        value={item.description}
+                                        onChange={(e) => handleItemChange(item.id, 'description', e.target.value)}
+                                        fullWidth
+                                        required
+                                    />
+                                </Grid>
+
+                                <Grid item xs={6} sm={2}>
+                                    <TextField
+                                        label="Quantity"
+                                        type="number"
+                                        value={item.quantity}
+                                        onChange={(e) => handleItemChange(item.id, 'quantity', e.target.value)}
+                                        fullWidth
+                                        required
+                                        InputProps={{
+                                            inputProps: { min: 1, step: 0.01 }
+                                        }}
+                                    />
+                                </Grid>
+
+                                <Grid item xs={6} sm={2}>
+                                    <TextField
+                                        label="Unit Price"
+                                        type="number"
+                                        value={item.unit_price}
+                                        onChange={(e) => handleItemChange(item.id, 'unit_price', e.target.value)}
+                                        fullWidth
+                                        required
+                                        InputProps={{
+                                            startAdornment: <InputAdornment position="start">{currency.symbol}</InputAdornment>,
+                                            inputProps: { min: 0, step: 0.01 }
+                                        }}
+                                    />
+                                </Grid>
+
+                                <Grid item xs={10} sm={2}>
+                                    <TextField
+                                        label="Total"
+                                        value={item.total.toFixed(2)}
+                                        InputProps={{
+                                            startAdornment: <InputAdornment position="start">{currency.symbol}</InputAdornment>,
+                                            readOnly: true
+                                        }}
+                                        fullWidth
+                                    />
+                                </Grid>
+
+                                <Grid item xs={2} sm={1} sx={{ display: 'flex', alignItems: 'center' }}>
+                                    <IconButton
+                                        color="error"
+                                        onClick={() => handleRemoveItem(item.id)}
+                                        disabled={items.length === 1}
+                                    >
+                                        <DeleteIcon />
+                                    </IconButton>
+                                </Grid>
+                            </Grid>
+                        ))}
+
+                        <Button
+                            startIcon={<AddIcon />}
+                            onClick={handleAddItem}
+                            variant="outlined"
+                            sx={{ mt: 1 }}
+                        >
+                            Add Item
+                        </Button>
+                    </Box>
+
+                    <Box sx={{ mt: 4, bgcolor: 'grey.100', p: 2, borderRadius: 1 }}>
+                        <Grid container spacing={2}>
+                            <Grid item xs={6} sm={9} />
+                            <Grid item xs={6} sm={3}>
+                                <Typography variant="subtitle1">Subtotal: {formatCurrency(subtotal)}</Typography>
+                                <Typography variant="subtitle1">Tax ({taxRate}%): {formatCurrency(taxAmount)}</Typography>
+                                <Divider sx={{ my: 1 }} />
+                                <Typography variant="h6">Total: {formatCurrency(total)}</Typography>
+                            </Grid>
                         </Grid>
-                    </Grid>
-                </Box>
+                    </Box>
 
-                <Box sx={{ mt: 3 }}>
-                    <TextField
-                        label="Notes"
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        fullWidth
-                        multiline
-                        rows={3}
-                    />
-                </Box>
-            </DialogContent>
+                    <Box sx={{ mt: 3 }}>
+                        <TextField
+                            label="Notes"
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            fullWidth
+                            multiline
+                            rows={3}
+                        />
+                    </Box>
+                </DialogContent>
 
-            <DialogActions>
-                <Button onClick={onClose}>Cancel</Button>
-                <Button
-                    onClick={handleSubmit}
-                    variant="contained"
-                    color="primary"
-                    disabled={isSubmitting}
-                >
-                    {isSubmitting ? 'Saving...' : 'Save Invoice'}
-                </Button>
-            </DialogActions>
-        </Dialog>
+                <DialogActions>
+                    <Button onClick={onClose}>Cancel</Button>
+                    <Button
+                        onClick={handleSubmit}
+                        variant="contained"
+                        color="primary"
+                        disabled={isSubmitting}
+                    >
+                        {isSubmitting ? 'Saving...' : 'Save and Close'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Success Message Snackbar */}
+            <Snackbar
+                open={showSuccessMessage}
+                autoHideDuration={1500}
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+            >
+                <Alert severity="success" elevation={6} variant="filled">
+                    Invoice saved successfully!
+                </Alert>
+            </Snackbar>
+        </>
     );
 };
 
