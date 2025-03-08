@@ -41,7 +41,7 @@ type Currency = {
 interface InvoiceFormModalProps {
     open: boolean;
     onClose: () => void;
-    onSave: (invoiceData: CreateInvoiceData) => Promise<void>;
+    onSave: (data: CreateInvoiceData) => Promise<void>;
     customer: Customer | null;
 }
 
