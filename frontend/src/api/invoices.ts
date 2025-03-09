@@ -15,7 +15,7 @@ export interface Invoice {
   invoice_number: string;
   issue_date: string;
   due_date: string;
-  status: 'draft' | 'pending' | 'paid' | 'cancelled';
+  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'reminder_sent' | 'cancelled';
   items: InvoiceItem[];
   subtotal: number;
   tax: number;
@@ -25,11 +25,12 @@ export interface Invoice {
 }
 
 export interface CreateInvoiceData {
+  user_id: string;  // Add user_id field
   customer_id: string;
   invoice_number: string;
   issue_date: string;
   due_date: string;
-  status: 'draft' | 'pending' | 'paid' | 'cancelled';
+  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'reminder_sent' | 'cancelled';
   items: {
     description: string;
     quantity: number;
@@ -39,10 +40,13 @@ export interface CreateInvoiceData {
   subtotal: number;
   tax: number;
   total: number;
+  notes?: string;  // Add notes field
+  recipient_email?: string;  // Add recipient_email field
+  currency_code?: string;  // Add currency_code field
 }
 
 export const getInvoices = async (): Promise<Invoice[]> => {
-  const response = await axios.get(`${API_URL}/invoices`);
+  const response = await axios.get(`${API_URL}/invoices/`);
   return response.data;
 };
 
