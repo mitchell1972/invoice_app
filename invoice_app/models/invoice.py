@@ -98,11 +98,19 @@ class InvoiceCreate(InvoiceBase):
     items: List[InvoiceItemBase]
 
 class InvoiceUpdate(BaseModel):
-    status: Optional[InvoiceStatus] = None
-    notes: Optional[str] = None
-    recipient_email: Optional[str] = None  # Field for recipient email
-    currency_code: Optional[str] = "USD"  # Field for currency
+    invoice_number: Optional[str] = None
+    customer_id: Optional[str] = None
+    issue_date: Optional[datetime] = None
     due_date: Optional[datetime] = None
+    status: Optional[InvoiceStatus] = None
+    subtotal: Optional[float] = None
+    tax: Optional[float] = None
+    tax_rate: Optional[float] = None
+    total: Optional[float] = None
+    notes: Optional[str] = None
+    recipient_email: Optional[str] = None
+    currency_code: Optional[str] = None
+    items: Optional[List[InvoiceItemBase]] = None
     
     class Config:
         # This allows using strings for enum values

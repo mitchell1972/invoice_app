@@ -76,15 +76,36 @@ def update_invoice(
         invoice_id: str,
         invoice_update: InvoiceUpdate
 ) -> Optional[InvoiceDB]:
-    """Update invoice."""
+    """Update invoice with full support for all fields including items."""
     db_invoice = get_invoice(db, invoice_id)
     if not db_invoice:
         return None
 
+    # Get update data excluding items
+    update_data = invoice_update.model_dump(exclude_unset=True)
+    items_data = update_data.pop('items', None)
+    
     # Update invoice fields
-    for field, value in invoice_update.model_dump(exclude_unset=True).items():
+    for field, value in update_data.items():
         setattr(db_invoice, field, value)
-
+    
+    # Update items if provided
+    if items_data is not None:
+        # Delete existing items
+        db.query(InvoiceItemDB).filter(InvoiceItemDB.invoice_id == invoice_id).delete()
+        
+        # Create new items
+        for item in items_data:
+            db_item = InvoiceItemDB(
+                id=str(uuid4()),
+                invoice_id=invoice_id,
+                description=item['description'],
+                quantity=item['quantity'],
+                unit_price=item['unit_price'],
+                total=item['total']
+            )
+            db.add(db_item)
+    
     db.commit()
     db.refresh(db_invoice)
     return db_invoice
