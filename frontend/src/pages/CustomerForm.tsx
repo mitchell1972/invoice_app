@@ -15,6 +15,7 @@ import { getCustomer, createCustomer, updateCustomer } from '../api/customers';
 interface CustomerFormData {
   name: string;
   email: string;
+  user_id: string;  // Add user_id field
   company?: string;
   phone?: string;
   address?: string;
@@ -66,7 +67,12 @@ export default function CustomerForm() {
     if (isEdit) {
       updateMutation.mutate({ id, data });
     } else {
-      createMutation.mutate(data);
+      // Set default user_id if not provided
+      const customerData = {
+        ...data,
+        user_id: data.user_id || '00000000-0000-0000-0000-000000000000'
+      };
+      createMutation.mutate(customerData);
     }
   };
 
@@ -76,6 +82,11 @@ export default function CustomerForm() {
         {isEdit ? 'Edit Customer' : 'New Customer'}
       </Typography>
       <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
+        <input 
+          type="hidden" 
+          {...register('user_id')} 
+          defaultValue="00000000-0000-0000-0000-000000000000" 
+        />
         <Grid container spacing={3}>
           <Grid item xs={12} sm={6}>
             <TextField

@@ -43,17 +43,34 @@ interface InvoiceFormModalProps {
     onClose: () => void;
     onSave: (data: CreateInvoiceData) => Promise<void>;
     customer: Customer | null;
+    onNavigateToInvoices?: () => void; // Add navigation callback
 }
 
 const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({
                                                                open,
                                                                onClose,
                                                                onSave,
-                                                               customer
+                                                               customer,
+                                                               onNavigateToInvoices
                                                            }) => {
     const [invoiceNumber, setInvoiceNumber] = useState(`INV-${Date.now()}`);
+    // Initialize state with default values
     const [issueDate, setIssueDate] = useState<Date>(new Date());
-    const [dueDate, setDueDate] = useState<Date>(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
+    const [dueDate, setDueDate] = useState<Date>(new Date());
+    
+    // Initialize dates when the component mounts
+    useEffect(() => {
+        // Initialize dates with noon time to avoid timezone issues
+        const today = new Date();
+        const initialIssueDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 0, 0);
+        
+        // Set due date to 30 days in the future
+        const initialDueDate = new Date(initialIssueDate);
+        initialDueDate.setDate(initialDueDate.getDate() + 30);
+        
+        setIssueDate(initialIssueDate);
+        setDueDate(initialDueDate);
+    }, []);
     const [status, setStatus] = useState<'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled'>('draft');
     const [notes, setNotes] = useState('');
     const [recipientEmail, setRecipientEmail] = useState('');
@@ -83,12 +100,17 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({
     const taxAmount = subtotal * (taxRate / 100);
     const total = subtotal + taxAmount;
 
-    // Format date as YYYY-MM-DD string
-    const formatDateToISOString = (date: Date): string => {
+    // Format date for display in the date picker (YYYY-MM-DD format)
+    const formatDateForPicker = (date: Date): string => {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
+    };
+    
+    // Format date as ISO string for API (which FastAPI expects for datetime objects)
+    const formatDateToISOString = (date: Date): string => {
+        return date.toISOString();
     };
 
     // Format currency display
@@ -151,14 +173,34 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({
     const handleSubmit = async () => {
         if (!customer) return;
 
+        // Validate that at least one item exists and has required fields
+        if (items.length === 0 || items.some(item => !item.description || item.quantity <= 0)) {
+            alert('Please add at least one valid item with description and quantity');
+            return;
+        }
+
         setIsSubmitting(true);
 
         try {
+            // Ensure all items have valid data
+            const validItems = items.map(({ id, ...item }) => ({
+                description: item.description || 'Service',
+                quantity: item.quantity || 1,
+                unit_price: item.unit_price || 0,
+                total: item.total || 0
+            }));
+
+            // Create a copy of the dates to ensure consistent handling
+            const issueDateTime = new Date(issueDate); 
+            const dueDateTime = new Date(dueDate);
+            
+            // Create the invoice data
             const invoiceData: CreateInvoiceData = {
                 invoice_number: invoiceNumber,
+                user_id: customer.user_id || '00000000-0000-0000-0000-000000000000', // Add user_id
                 customer_id: customer.id,
-                issue_date: formatDateToISOString(issueDate),
-                due_date: formatDateToISOString(dueDate),
+                issue_date: formatDateToISOString(issueDateTime),
+                due_date: formatDateToISOString(dueDateTime),
                 status,
                 subtotal,
                 tax: taxAmount,
@@ -166,18 +208,33 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({
                 notes,
                 recipient_email: recipientEmail,
                 currency_code: currency.code,
-                items: items.map(({ id, ...item }) => item) // Remove the temporary id
+                items: validItems
             };
 
             await onSave(invoiceData);
+            
+            // Show success message immediately
             setShowSuccessMessage(true);
-
+            
             // Close the modal after a brief delay to show the success message
             setTimeout(() => {
+                // First close the modal
                 onClose();
+                
+                // Then redirect to invoices page
+                if (onNavigateToInvoices) {
+                    console.log("Navigating to invoices list");
+                    onNavigateToInvoices();
+                }
             }, 1500);
         } catch (error) {
             console.error('Error saving invoice:', error);
+            // Show error message
+            alert('Failed to save invoice. Please check all required fields and try again.');
+            // Also display more details in the console
+            if (error instanceof Error) {
+                console.error('Error details:', error.message);
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -224,10 +281,10 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({
                                     <strong>Invoice Number:</strong> {invoiceNumber}
                                 </Typography>
                                 <Typography variant="body2">
-                                    <strong>Issue Date:</strong> {formatDateToISOString(issueDate)}
+                                    <strong>Issue Date:</strong> {formatDateForPicker(issueDate)}
                                 </Typography>
                                 <Typography variant="body2">
-                                    <strong>Due Date:</strong> {formatDateToISOString(dueDate)}
+                                    <strong>Due Date:</strong> {formatDateForPicker(dueDate)}
                                 </Typography>
                             </Grid>
                         </Grid>
@@ -261,8 +318,16 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({
                                 <TextField
                                     label="Issue Date"
                                     type="date"
-                                    value={formatDateToISOString(issueDate)}
-                                    onChange={(e) => setIssueDate(new Date(e.target.value))}
+                                    value={formatDateForPicker(issueDate)}
+                                    onChange={(e) => {
+                                        // Set time to noon to avoid timezone issues
+                                        const dateString = e.target.value;
+                                        const [year, month, day] = dateString.split('-').map(Number);
+                                        // Month is 0-indexed in JavaScript Date object
+                                        const date = new Date(year, month - 1, day, 12, 0, 0);
+                                        console.log("Selected issue date:", date);
+                                        setIssueDate(date);
+                                    }}
                                     fullWidth
                                     InputLabelProps={{
                                         shrink: true,
@@ -274,8 +339,16 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({
                                 <TextField
                                     label="Due Date"
                                     type="date"
-                                    value={formatDateToISOString(dueDate)}
-                                    onChange={(e) => setDueDate(new Date(e.target.value))}
+                                    value={formatDateForPicker(dueDate)}
+                                    onChange={(e) => {
+                                        // Set time to noon to avoid timezone issues
+                                        const dateString = e.target.value;
+                                        const [year, month, day] = dateString.split('-').map(Number);
+                                        // Month is 0-indexed in JavaScript Date object
+                                        const date = new Date(year, month - 1, day, 12, 0, 0);
+                                        console.log("Selected due date:", date);
+                                        setDueDate(date);
+                                    }}
                                     fullWidth
                                     InputLabelProps={{
                                         shrink: true,

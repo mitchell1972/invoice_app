@@ -8,8 +8,8 @@ from typing import List, Optional, Dict, Any, Tuple
 from sqlalchemy import and_, or_, func
 from sqlalchemy.orm import Session, joinedload
 
-from app.models.customer import Customer
-from app.repositories.base_repository import BaseRepository
+from invoice_app.models.customer import CustomerDB as Customer
+from repositories.base_repository import BaseRepository
 
 
 class CustomerRepository(BaseRepository[Customer]):
@@ -64,7 +64,7 @@ class CustomerRepository(BaseRepository[Customer]):
         Returns:
             List of tuples (customer, invoice_count, total_outstanding)
         """
-        from app.models.invoice import Invoice, InvoiceStatus
+        from invoice_app.models.invoice import InvoiceDB as Invoice, InvoiceStatus
 
         query = self.session.query(
             Customer,

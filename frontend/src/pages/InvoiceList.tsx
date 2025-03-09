@@ -66,6 +66,7 @@ export default function InvoiceList() {
     const { data: invoices = [], isLoading } = useQuery({
         queryKey: ['invoices'],
         queryFn: getInvoices,
+        refetchInterval: 3000, // Refresh every 3 seconds to ensure invoices are up-to-date
     });
 
     const deleteMutation = useMutation({

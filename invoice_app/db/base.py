@@ -17,7 +17,7 @@ engine = create_engine(
     pool_pre_ping=True,
     pool_size=5,
     max_overflow=10,
-    echo=True  # Enable SQL logging for debugging
+    echo=os.getenv("DEBUG", "False").lower() in ("true", "1", "t")  # Only enable SQL logging in debug mode
 )
 
 # Create session factory

@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from typing import Generic, TypeVar, List, Optional, Dict, Any, Type, Union
 from sqlalchemy.orm import Session
 
-from app.models.base import Base
+from invoice_app.db.base import Base
 
 T = TypeVar('T', bound=Base)
 
@@ -47,12 +47,12 @@ class BaseRepository(Generic[T], ABC):
         self.session.flush()
         return entity
 
-    def get_by_id(self, entity_id: int) -> Optional[T]:
+    def get_by_id(self, entity_id: str) -> Optional[T]:
         """
         Get entity by its primary key ID.
 
         Args:
-            entity_id: Primary key ID value
+            entity_id: Primary key ID value (string UUID)
 
         Returns:
             Entity instance if found, None otherwise
@@ -71,12 +71,12 @@ class BaseRepository(Generic[T], ABC):
         """
         return self.session.query(self.model_class).filter_by(uuid=uuid).first()
 
-    def update(self, entity_id: int, **kwargs) -> Optional[T]:
+    def update(self, entity_id: str, **kwargs) -> Optional[T]:
         """
         Update an existing entity.
 
         Args:
-            entity_id: ID of entity to update
+            entity_id: ID of entity to update (string UUID)
             **kwargs: Entity attributes to update
 
         Returns:
@@ -90,12 +90,12 @@ class BaseRepository(Generic[T], ABC):
             return entity
         return None
 
-    def delete(self, entity_id: int) -> bool:
+    def delete(self, entity_id: str) -> bool:
         """
         Delete an entity by ID.
 
         Args:
-            entity_id: ID of entity to delete
+            entity_id: ID of entity to delete (string UUID)
 
         Returns:
             True if entity was deleted, False if not found

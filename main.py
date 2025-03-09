@@ -89,10 +89,18 @@ def create_invoice(
         invoice: InvoiceCreate,
         db: Session = Depends(get_db)
 ):
+    # Log the invoice data for debugging
+    print("Received invoice data:", invoice.model_dump())
+    print("Items:", invoice.items)
+    
     try:
         return invoice_crud.create_invoice(db=db, invoice=invoice)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        # Add more detailed error information
+        print(f"Error creating invoice: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 @app.get("/api/v1/invoices/", response_model=List[Invoice])
 def list_invoices(

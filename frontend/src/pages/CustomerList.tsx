@@ -114,14 +114,51 @@ export default function CustomerList() {
   };
 
   // Function to handle saving the invoice
-  const handleSaveInvoice = async (invoiceData: CreateInvoiceData) => {
-    console.log('Saving invoice:', invoiceData);
-    await createInvoiceMutation.mutateAsync(invoiceData);
-    // No return statement makes it return Promise<void>
+  const handleSaveInvoice = async (invoiceData: CreateInvoiceData): Promise<void> => {
+    try {
+      console.log('Saving invoice with data:', invoiceData);
+      
+      // Format dates for proper serialization and validation
+      const processedInvoiceData = {
+        ...invoiceData,
+        // Make sure invoices items are valid
+        items: invoiceData.items.map(item => ({
+          description: item.description || 'Service',
+          quantity: item.quantity || 0,
+          unit_price: item.unit_price || 0,
+          total: (item.quantity || 0) * (item.unit_price || 0)
+        }))
+      };
+      
+      console.log('Processed invoice data:', processedInvoiceData);
+      
+      const response = await createInvoiceMutation.mutateAsync(processedInvoiceData);
+      console.log('Invoice created with response:', response);
+      
+      // Update customer invoices status
+      if (response && response.customer_id) {
+        setCustomerInvoices(prev => ({
+          ...prev,
+          [response.customer_id]: 'saved'
+        }));
+      }
+      
+      setSnackbarMessage('Invoice has been saved successfully!');
+      setOpenSnackbar(true);
+      
+      // Re-fetch invoices list
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      
+      // Return void instead of the response
+    } catch (error) {
+      console.error('Error saving invoice:', error);
+      throw error;
+    }
   };
 
   const handleCreateInvoice = async (customer: Customer) => {
     const invoiceData = {
+      user_id: customer.user_id || '00000000-0000-0000-0000-000000000000', // Add user_id
       customer_id: customer.id,
       invoice_number: `INV-${Date.now()}`,
       issue_date: new Date().toISOString(),
@@ -163,6 +200,7 @@ export default function CustomerList() {
     const customerData = {
       name: `${newCustomer.firstName} ${newCustomer.surname}`,
       email: newCustomer.email,
+      user_id: '00000000-0000-0000-0000-000000000000',  // Add default user_id
       phone: newCustomer.tel,
       address: `${newCustomer.address}\n${newCustomer.postcode}`,  // Combine address components
       city: '',  // Could be added to form if needed
@@ -388,6 +426,7 @@ export default function CustomerList() {
             onClose={() => setInvoiceModalOpen(false)}
             onSave={handleSaveInvoice}
             customer={selectedCustomer}
+            onNavigateToInvoices={() => navigate('/invoices')}
         />
       </Box>
   );

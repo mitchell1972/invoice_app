@@ -17,6 +17,7 @@ class CustomerDB(Base):
     __tablename__ = "customers"
 
     id = Column(String(36), primary_key=True, index=True)
+    user_id = Column(String(36), index=True, nullable=False)  # Add user_id field
     name = Column(String(100), nullable=False, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
     company = Column(String(100))
@@ -44,6 +45,7 @@ class CustomerBase(BaseModel):
     """Shared customer properties."""
     name: str
     email: EmailStr
+    user_id: str  # Add user_id field
     company: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None

@@ -15,6 +15,7 @@ class InvoiceStatus(str, enum.Enum):
     SENT = "sent"
     PAID = "paid"
     OVERDUE = "overdue"
+    REMINDER_SENT = "reminder_sent"  # Added REMINDER_SENT status
     CANCELLED = "cancelled"
 
 class InvoiceDB(Base):
@@ -24,18 +25,18 @@ class InvoiceDB(Base):
 
     id = Column(String(36), primary_key=True, index=True)
     invoice_number = Column(String(50), unique=True, nullable=False, index=True)
+    user_id = Column(String(36), index=True, nullable=False)  # Add user_id field
     customer_id = Column(String(36), ForeignKey('customers.id'), nullable=False)
     issue_date = Column(DateTime, nullable=False)
     due_date = Column(DateTime, nullable=False)
     status = Column(String(20), default=InvoiceStatus.DRAFT.value)
     subtotal = Column(Numeric(10, 2), nullable=False)
     tax = Column(Numeric(10, 2), default=0)
+    tax_rate = Column(Numeric(5, 2), default=20.00)  # Default 20% tax rate
     total = Column(Numeric(10, 2), nullable=False)
     notes = Column(Text)
-    recipient_email = Column(String(255))  # New field for recipient email
-    currency_code = Column(String(3), default="USD")  # New field for currency
-    recipient_email = Column(String(255))  # New field for recipient email
-    currency_code = Column(String(3), default="USD")  # New field for currency
+    recipient_email = Column(String(255))  # Field for recipient email
+    currency_code = Column(String(3), default="USD")  # Field for currency
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -76,30 +77,36 @@ class InvoiceItem(InvoiceItemBase):
 
 class InvoiceBase(BaseModel):
     invoice_number: str
+    user_id: str  # Add user_id field
     customer_id: str
     issue_date: datetime
     due_date: datetime
-    status: str
+    status: InvoiceStatus  # Use enum type for validation
     subtotal: float
     tax: float
+    tax_rate: Optional[float] = 20.0  # Default 20% tax rate
     total: float
     notes: Optional[str] = None
-    recipient_email: Optional[str] = None  # New field for recipient email
-    currency_code: Optional[str] = "USD"  # New field for currency
-    recipient_email: Optional[str] = None  # New field for recipient email
-    currency_code: Optional[str] = "USD"  # New field for currency
+    recipient_email: Optional[str] = None  # Field for recipient email
+    currency_code: Optional[str] = "USD"  # Field for currency
+    
+    class Config:
+        # This allows using strings for enum values
+        use_enum_values = True
 
 class InvoiceCreate(InvoiceBase):
     items: List[InvoiceItemBase]
 
 class InvoiceUpdate(BaseModel):
-    status: Optional[str] = None
+    status: Optional[InvoiceStatus] = None
     notes: Optional[str] = None
-    recipient_email: Optional[str] = None  # New field for recipient email
-    currency_code: Optional[str] = "USD"  # New field for currency
+    recipient_email: Optional[str] = None  # Field for recipient email
+    currency_code: Optional[str] = "USD"  # Field for currency
     due_date: Optional[datetime] = None
-    recipient_email: Optional[str] = None
-    currency_code: Optional[str] = None
+    
+    class Config:
+        # This allows using strings for enum values
+        use_enum_values = True
 
 class Invoice(InvoiceBase):
     id: str

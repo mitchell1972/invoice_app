@@ -40,6 +40,7 @@ def create_invoice(db: Session, invoice: InvoiceCreate) -> InvoiceDB:
     db_invoice = InvoiceDB(
         id=str(uuid4()),
         invoice_number=invoice.invoice_number,
+        user_id=invoice.user_id,  # Add the user_id field
         customer_id=invoice.customer_id,
         issue_date=invoice.issue_date,
         due_date=invoice.due_date,
@@ -48,8 +49,8 @@ def create_invoice(db: Session, invoice: InvoiceCreate) -> InvoiceDB:
         tax=invoice.tax,
         total=invoice.total,
         notes=invoice.notes,
-        recipient_email=invoice.recipient_email,  # Add the new field
-        currency_code=invoice.currency_code       # Add the new field
+        recipient_email=invoice.recipient_email,
+        currency_code=invoice.currency_code
     )
     db.add(db_invoice)
     db.flush()  # Flush to get the ID for invoice items

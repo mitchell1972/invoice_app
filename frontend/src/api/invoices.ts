@@ -11,6 +11,7 @@ export interface InvoiceItem {
 
 export interface Invoice {
   id: string;
+  user_id: string;
   customer_id: string;
   invoice_number: string;
   issue_date: string;
@@ -19,7 +20,11 @@ export interface Invoice {
   items: InvoiceItem[];
   subtotal: number;
   tax: number;
+  tax_rate?: number;  // Tax rate percentage
   total: number;
+  notes?: string;
+  recipient_email?: string;
+  currency_code?: string;
   created_at?: string;
   updated_at?: string;
 }

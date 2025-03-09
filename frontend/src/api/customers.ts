@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create an axios instance with default config
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8000',
+  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8000/api/v1',
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
@@ -58,6 +58,7 @@ api.interceptors.response.use(
 
 export interface Customer {
   id: string;
+  user_id: string;  // Add user_id field
   name: string;
   email: string;
   company?: string;
@@ -90,7 +91,7 @@ export const getCustomer = async (id: string): Promise<Customer> => {
 export const createCustomer = async (customer: Omit<Customer, 'id' | 'created_at' | 'updated_at'>): Promise<Customer> => {
   try {
     console.log('Creating customer with data:', customer);
-    const response = await api.post('/customers', customer);
+    const response = await api.post('/customers/', customer);
     console.log('Create customer response:', response.data);
     return response.data;
   } catch (error) {
