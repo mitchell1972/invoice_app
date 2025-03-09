@@ -3,6 +3,7 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime
+import logging
 
 from invoice_app.models.invoice import (
     InvoiceDB,
@@ -11,6 +12,9 @@ from invoice_app.models.invoice import (
     InvoiceUpdate,
     InvoiceStatus
 )
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 def get_invoice(db: Session, invoice_id: str) -> Optional[InvoiceDB]:
     """Get an invoice by ID."""
@@ -36,40 +40,48 @@ def get_invoices(
 
 def create_invoice(db: Session, invoice: InvoiceCreate) -> InvoiceDB:
     """Create new invoice."""
-    # Create invoice
-    db_invoice = InvoiceDB(
-        id=str(uuid4()),
-        invoice_number=invoice.invoice_number,
-        user_id=invoice.user_id,  # Add the user_id field
-        customer_id=invoice.customer_id,
-        issue_date=invoice.issue_date,
-        due_date=invoice.due_date,
-        status=invoice.status,
-        subtotal=invoice.subtotal,
-        tax=invoice.tax,
-        total=invoice.total,
-        notes=invoice.notes,
-        recipient_email=invoice.recipient_email,
-        currency_code=invoice.currency_code
-    )
-    db.add(db_invoice)
-    db.flush()  # Flush to get the ID for invoice items
+    try:
+        logger.info(f"Creating invoice with number: {invoice.invoice_number}")
 
-    # Create invoice items
-    for item in invoice.items:
-        db_item = InvoiceItemDB(
+        # Create invoice
+        db_invoice = InvoiceDB(
             id=str(uuid4()),
-            invoice_id=db_invoice.id,
-            description=item.description,
-            quantity=item.quantity,
-            unit_price=item.unit_price,
-            total=item.total
+            invoice_number=invoice.invoice_number,
+            user_id=invoice.user_id,
+            customer_id=invoice.customer_id,
+            issue_date=invoice.issue_date,
+            due_date=invoice.due_date,
+            status=invoice.status,
+            subtotal=invoice.subtotal,
+            tax=invoice.tax,
+            total=invoice.total,
+            notes=invoice.notes,
+            recipient_email=invoice.recipient_email,
+            currency_code=invoice.currency_code
         )
-        db.add(db_item)
+        db.add(db_invoice)
+        db.flush()  # Flush to get the ID for invoice items
 
-    db.commit()
-    db.refresh(db_invoice)
-    return db_invoice
+        # Create invoice items
+        for item in invoice.items:
+            db_item = InvoiceItemDB(
+                id=str(uuid4()),
+                invoice_id=db_invoice.id,
+                description=item.description,
+                quantity=item.quantity,
+                unit_price=item.unit_price,
+                total=item.total
+            )
+            db.add(db_item)
+
+        db.commit()
+        db.refresh(db_invoice)
+        logger.info(f"Invoice created successfully: {db_invoice.id}")
+        return db_invoice
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error creating invoice: {str(e)}")
+        raise
 
 def update_invoice(
         db: Session,
@@ -77,70 +89,99 @@ def update_invoice(
         invoice_update: InvoiceUpdate
 ) -> Optional[InvoiceDB]:
     """Update invoice with full support for all fields including items."""
-    db_invoice = get_invoice(db, invoice_id)
-    if not db_invoice:
-        return None
+    try:
+        logger.info(f"Updating invoice {invoice_id}")
+        logger.debug(f"Update data: {invoice_update.model_dump(exclude_unset=True)}")
 
-    # Get update data excluding items
-    update_data = invoice_update.model_dump(exclude_unset=True)
-    items_data = update_data.pop('items', None)
-    
-    # Update invoice fields
-    for field, value in update_data.items():
-        setattr(db_invoice, field, value)
-    
-    # Update items if provided
-    if items_data is not None:
-        # Delete existing items
-        db.query(InvoiceItemDB).filter(InvoiceItemDB.invoice_id == invoice_id).delete()
-        
-        # Create new items
-        for item in items_data:
-            db_item = InvoiceItemDB(
-                id=str(uuid4()),
-                invoice_id=invoice_id,
-                description=item['description'],
-                quantity=item['quantity'],
-                unit_price=item['unit_price'],
-                total=item['total']
-            )
-            db.add(db_item)
-    
-    db.commit()
-    db.refresh(db_invoice)
-    return db_invoice
+        db_invoice = get_invoice(db, invoice_id)
+        if not db_invoice:
+            logger.warning(f"Invoice {invoice_id} not found")
+            return None
+
+        # Get update data excluding items
+        update_data = invoice_update.model_dump(exclude_unset=True)
+        items_data = update_data.pop('items', None)
+
+        logger.debug(f"Updating invoice fields: {update_data}")
+        logger.debug(f"Updating items: {items_data is not None}")
+
+        # Update invoice fields
+        for field, value in update_data.items():
+            setattr(db_invoice, field, value)
+
+        # Update items if provided
+        if items_data is not None:
+            # Delete existing items
+            db.query(InvoiceItemDB).filter(InvoiceItemDB.invoice_id == invoice_id).delete()
+
+            # Create new items
+            for item in items_data:
+                db_item = InvoiceItemDB(
+                    id=str(uuid4()),
+                    invoice_id=invoice_id,
+                    description=item['description'],
+                    quantity=item['quantity'],
+                    unit_price=item['unit_price'],
+                    total=item['total']
+                )
+                db.add(db_item)
+
+        try:
+            db.commit()
+            db.refresh(db_invoice)
+            logger.info(f"Invoice {invoice_id} updated successfully")
+            return db_invoice
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Database error updating invoice {invoice_id}: {str(e)}")
+            raise
+    except Exception as e:
+        logger.error(f"Error updating invoice {invoice_id}: {str(e)}")
+        if 'db' in locals():
+            db.rollback()
+        raise
 
 def delete_invoice(db: Session, invoice_id: str) -> bool:
     """Delete invoice."""
-    invoice = get_invoice(db, invoice_id)
-    if not invoice:
-        return False
+    try:
+        invoice = get_invoice(db, invoice_id)
+        if not invoice:
+            return False
 
-    db.delete(invoice)
-    db.commit()
-    return True
+        db.delete(invoice)
+        db.commit()
+        logger.info(f"Invoice {invoice_id} deleted successfully")
+        return True
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error deleting invoice {invoice_id}: {str(e)}")
+        raise
 
 def get_invoice_stats(db: Session) -> dict:
     """Get invoice statistics."""
-    total_invoices = db.query(func.count(InvoiceDB.id)).scalar()
-    total_revenue = db.query(func.sum(InvoiceDB.total)).filter(
-        InvoiceDB.status == InvoiceStatus.PAID
-    ).scalar() or 0
+    try:
+        total_invoices = db.query(func.count(InvoiceDB.id)).scalar()
+        total_revenue = db.query(func.sum(InvoiceDB.total)).filter(
+            InvoiceDB.status == InvoiceStatus.PAID
+        ).scalar() or 0
 
-    # Get counts by status
-    status_counts = (
-        db.query(
-            InvoiceDB.status,
-            func.count(InvoiceDB.id)
+        # Get counts by status
+        status_counts = (
+            db.query(
+                InvoiceDB.status,
+                func.count(InvoiceDB.id)
+            )
+            .group_by(InvoiceDB.status)
+            .all()
         )
-        .group_by(InvoiceDB.status)
-        .all()
-    )
 
-    return {
-        "total_invoices": total_invoices,
-        "total_revenue": float(total_revenue),
-        "status_counts": {
-            status: count for status, count in status_counts
+        return {
+            "total_invoices": total_invoices,
+            "total_revenue": float(total_revenue),
+            "status_counts": {
+                status: count for status, count in status_counts
+            }
         }
-    }
+    except Exception as e:
+        logger.error(f"Error getting invoice stats: {str(e)}")
+        raise
