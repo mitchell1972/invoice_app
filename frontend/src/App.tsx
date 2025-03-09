@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import CustomerList from './pages/CustomerList';
 import CustomerForm from './pages/CustomerForm';
 import InvoiceList from './pages/InvoiceList';
+import InvoiceForm from './pages/InvoiceForm';
 import theme from './theme';
 
 const queryClient = new QueryClient();
@@ -23,6 +24,7 @@ function App() {
                 <Route path="/customers/new" element={<CustomerForm />} />
                 <Route path="/customers/:id" element={<CustomerForm />} />
                 <Route path="/invoices" element={<InvoiceList />} />
+                <Route path="/invoices/:id" element={<InvoiceForm />} />
               </Routes>
             </Layout>
           </Router>
