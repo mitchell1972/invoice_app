@@ -1,12 +1,15 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from typing import List
-
+from typing import List, Optional
+from datetime import datetime
+import json
 from invoice_app.config import get_settings
 from invoice_app.db.base import get_db, Base, engine
 from invoice_app.models.customer import Customer, CustomerCreate, CustomerUpdate
-from invoice_app.models.invoice import Invoice, InvoiceCreate, InvoiceUpdate
+from invoice_app.models.invoice import Invoice, InvoiceCreate, InvoiceUpdate, InvoiceItem, InvoiceStatus
 from invoice_app.crud import customer as customer_crud
 from invoice_app.crud import invoice as invoice_crud
 
@@ -92,7 +95,7 @@ def create_invoice(
     # Log the invoice data for debugging
     print("Received invoice data:", invoice.model_dump())
     print("Items:", invoice.items)
-    
+
     try:
         return invoice_crud.create_invoice(db=db, invoice=invoice)
     except ValueError as e:
@@ -122,15 +125,89 @@ def get_invoice(
     return invoice
 
 @app.put("/api/v1/invoices/{invoice_id}", response_model=Invoice)
-def update_invoice(
+async def update_invoice(
         invoice_id: str,
         invoice: InvoiceUpdate,
         db: Session = Depends(get_db)
 ):
-    updated_invoice = invoice_crud.update_invoice(db, invoice_id, invoice)
-    if not updated_invoice:
-        raise HTTPException(status_code=404, detail="Invoice not found")
-    return updated_invoice
+    try:
+        print(f"Received update for invoice {invoice_id}: {invoice.model_dump(exclude_unset=True)}")
+        updated_invoice = invoice_crud.update_invoice(db, invoice_id, invoice)
+        if not updated_invoice:
+            raise HTTPException(status_code=404, detail="Invoice not found")
+        return updated_invoice
+    except Exception as e:
+        print(f"Error updating invoice: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error updating invoice: {str(e)}")
+
+# New endpoint to handle form submissions from the web interface
+@app.post("/api/v1/invoices/{invoice_id}/form-update")
+async def update_invoice_form(
+        invoice_id: str,
+        request: Request,
+        db: Session = Depends(get_db)
+):
+    try:
+        # Parse form data
+        form_data = await request.form()
+
+        # Convert to dict for easier access
+        data = dict(form_data)
+        print(f"Received form data for invoice {invoice_id}: {data}")
+
+        # Extract invoice fields from form data
+        invoice_number = data.get("invoice_number")
+        recipient_email = data.get("recipient_email")
+        issue_date = datetime.strptime(data.get("issue_date", ""), "%Y-%m-%d") if data.get("issue_date") else None
+        due_date = datetime.strptime(data.get("due_date", ""), "%Y-%m-%d") if data.get("due_date") else None
+        status = data.get("status")
+        currency_code = data.get("currency_code", "USD")
+        notes = data.get("notes", "")
+
+        # Process invoice items
+        items = []
+        i = 0
+        while f"item_description_{i}" in data:
+            item = {
+                "description": data.get(f"item_description_{i}", ""),
+                "quantity": float(data.get(f"item_quantity_{i}", 0)),
+                "unit_price": float(data.get(f"item_unit_price_{i}", 0)),
+                "total": float(data.get(f"item_total_{i}", 0))
+            }
+            items.append(item)
+            i += 1
+
+        # Calculate financial values
+        subtotal = float(data.get("subtotal", 0))
+        tax = float(data.get("tax", 0))
+        total = float(data.get("total", 0))
+
+        # Create update object
+        update_data = InvoiceUpdate(
+            invoice_number=invoice_number,
+            recipient_email=recipient_email,
+            issue_date=issue_date,
+            due_date=due_date,
+            status=status,
+            currency_code=currency_code,
+            notes=notes,
+            subtotal=subtotal,
+            tax=tax,
+            total=total,
+            items=items
+        )
+
+        # Update invoice in database
+        updated_invoice = invoice_crud.update_invoice(db, invoice_id, update_data)
+        if not updated_invoice:
+            raise HTTPException(status_code=404, detail="Invoice not found")
+
+        # Redirect back to invoice page
+        return {"message": "Invoice updated successfully", "invoice_id": invoice_id}
+
+    except Exception as e:
+        print(f"Error updating invoice form: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error updating invoice: {str(e)}")
 
 @app.delete("/api/v1/invoices/{invoice_id}")
 def delete_invoice(

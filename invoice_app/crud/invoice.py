@@ -103,14 +103,17 @@ def update_invoice(
         items_data = update_data.pop('items', None)
 
         logger.debug(f"Updating invoice fields: {update_data}")
-        logger.debug(f"Updating items: {items_data is not None}")
 
         # Update invoice fields
         for field, value in update_data.items():
-            setattr(db_invoice, field, value)
+            # Skip None values to allow partial updates
+            if value is not None:
+                setattr(db_invoice, field, value)
 
         # Update items if provided
         if items_data is not None:
+            logger.debug(f"Updating items: {items_data}")
+
             # Delete existing items
             db.query(InvoiceItemDB).filter(InvoiceItemDB.invoice_id == invoice_id).delete()
 
@@ -119,10 +122,10 @@ def update_invoice(
                 db_item = InvoiceItemDB(
                     id=str(uuid4()),
                     invoice_id=invoice_id,
-                    description=item['description'],
-                    quantity=item['quantity'],
-                    unit_price=item['unit_price'],
-                    total=item['total']
+                    description=item.get('description', '') or 'Unnamed item',
+                    quantity=float(item.get('quantity', 1)),
+                    unit_price=float(item.get('unit_price', 0)),
+                    total=float(item.get('total', 0))
                 )
                 db.add(db_item)
 
